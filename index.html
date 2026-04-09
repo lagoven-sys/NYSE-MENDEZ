@@ -2,155 +2,117 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Ticker Pro - José Méndez</title>
+    <title>Ticker Stock - José Méndez</title>
     <style>
-        :root {
-            --bg-color: #000;
-            --up-color: #00ff00;
-            --down-color: #ff4444;
-            --ticker-height: 45px;
-        }
-
-        body, html {
-            margin: 0;
-            padding: 0;
-            background-color: var(--bg-color);
-            overflow: hidden;
-            font-family: 'Arial', sans-serif;
-        }
-
-        /* Ticker Ultra-Reducido */
-        .ticker-container {
-            width: 100%;
-            height: var(--ticker-height);
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+        
+        /* Contenedor principal ultra-pequeño */
+        #ticker-container {
+            height: 40px;
             background: #111;
             display: flex;
             align-items: center;
-            white-space: nowrap;
             border-bottom: 1px solid #333;
+            overflow: hidden;
+            white-space: nowrap;
         }
 
-        .ticker-wrapper {
+        #ticker-content {
             display: inline-block;
             padding-left: 100%;
-            animation: scroll-left 35s linear infinite;
-        }
-
-        .stock-item {
-            display: inline-block;
-            margin-right: 50px;
-            font-size: 1.1rem;
+            animation: move 30s linear infinite;
+            font-size: 1.2rem;
             font-weight: bold;
-            color: #fff;
         }
 
-        .price-up { color: var(--up-color); }
-        .price-down { color: var(--down-color); }
-
-        @keyframes scroll-left {
+        @keyframes move {
             0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
         }
 
-        /* Panel Auto-ocultable */
-        .config-panel {
-            background: rgba(30, 30, 30, 0.95);
-            color: #ccc;
-            padding: 10px;
+        .up { color: #00ff00; }
+        .down { color: #ff4444; }
+
+        /* Panel que se oculta solo */
+        #panel {
             position: fixed;
             bottom: 0;
             width: 100%;
+            background: rgba(40,40,40,0.9);
+            padding: 10px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            transition: transform 0.4s ease, opacity 0.4s ease;
-            border-top: 1px solid #444;
-            box-sizing: border-box;
+            transition: 0.5s;
+            z-index: 10;
         }
 
-        .hidden { transform: translateY(100%); opacity: 0; }
-
-        input { background: #333; border: 1px solid #555; color: #fff; padding: 5px; border-radius: 4px; }
-        button { background: #0055ff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
-        .credits { font-size: 0.8rem; font-style: italic; color: #777; }
+        .oculto { transform: translateY(100%); opacity: 0; }
+        
+        input { background: #222; color: #0f0; border: 1px solid #444; padding: 5px; }
+        .autor { font-size: 0.7rem; color: #888; text-align: right; }
     </style>
 </head>
 <body>
 
-    <div class="ticker-container" id="mainContainer">
-        <div id="ticker" class="ticker-wrapper">Cargando mercado...</div>
+    <div id="ticker-container">
+        <div id="ticker-content">Iniciando sistema de bolsa...</div>
     </div>
 
-    <div class="config-panel" id="configPanel">
+    <div id="panel">
         <div>
-            <label>Stocks: </label>
-            <input type="text" id="symbolsInput" value="AAPL,MSFT,TSLA,NVDA,GOOGL">
-            <button onclick="fetchStocks()">Actualizar</button>
+            <input type="text" id="stocks" value="AAPL,TSLA,MSFT,NVDA">
+            <button onclick="getData()">Cargar</button>
         </div>
-        <div class="credits">Autor: José Méndez</div>
+        <div class="autor">Autor: José Méndez</div>
     </div>
 
     <script>
-        // Usaremos tu clave de Marketstack que ya funcionaba
         const API_KEY = '43453d9cd558518711f937072c3a3998';
-        const configPanel = document.getElementById('configPanel');
-        let hideTimeout;
 
-        // --- Lógica de Ocultar Panel ---
-        function resetTimer() {
-            configPanel.classList.remove('hidden');
-            clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(() => configPanel.classList.add('hidden'), 5000);
-        }
-
-        document.addEventListener('mousemove', resetTimer);
-        document.addEventListener('touchstart', resetTimer);
-        resetTimer();
-
-        // --- Lógica de Datos ---
-        async function fetchStocks() {
-            const symbols = document.getElementById('symbolsInput').value;
-            // Usamos el endpoint 'eod' (End of Day) para asegurar que siempre haya datos
-            const url = `https://api.marketstack.com/v1/eod/latest?access_key=${API_KEY}&symbols=${symbols}`;
-
+        async function getData() {
+            const symbols = document.getElementById('stocks').value;
+            const content = document.getElementById('ticker-content');
+            
             try {
-                const response = await fetch(url);
-                const result = await response.json();
-                
-                if (result && result.data && result.data.length > 0) {
-                    renderTicker(result.data);
+                // Forzamos el uso de EOD que es más estable
+                const resp = await fetch(`https://api.marketstack.com/v1/eod/latest?access_key=${API_KEY}&symbols=${symbols}`);
+                const json = await resp.json();
+
+                if (json.data && json.data.length > 0) {
+                    content.innerHTML = '';
+                    json.data.forEach(s => {
+                        const dif = (s.close - s.open).toFixed(2);
+                        const clase = dif >= 0 ? 'up' : 'down';
+                        const flecha = dif >= 0 ? '▲' : '▼';
+                        
+                        content.innerHTML += `
+                            <span style="margin-right:50px">
+                                ${s.symbol}: <span class="${clase}">$${s.close.toFixed(2)} ${flecha} ${dif}</span>
+                            </span>`;
+                    });
                 } else {
-                    document.getElementById('ticker').innerHTML = "Sin datos (Verifica tu API en Marketstack)";
+                    content.innerText = "Error: Verifica los símbolos o la API Key.";
                 }
             } catch (e) {
-                document.getElementById('ticker').innerHTML = "Error de conexión";
+                content.innerText = "Error de conexión con Marketstack.";
             }
         }
 
-        function renderTicker(stocks) {
-            const ticker = document.getElementById('ticker');
-            ticker.innerHTML = '';
-
-            stocks.forEach(stock => {
-                // Cálculo de tendencia (Cierre vs Apertura)
-                const isUp = stock.close >= stock.open;
-                const colorClass = isUp ? 'price-up' : 'price-down';
-                const icon = isUp ? '▲' : '▼';
-                const diff = (stock.close - stock.open).toFixed(2);
-
-                const item = document.createElement('span');
-                item.className = 'stock-item';
-                item.innerHTML = `
-                    ${stock.symbol}: 
-                    <span class="${colorClass}">$${stock.close.toFixed(2)} ${icon} ${diff}</span>
-                `;
-                ticker.appendChild(item);
-            });
+        // Control del panel auto-ocultable
+        let timer;
+        function mostrar() {
+            document.getElementById('panel').classList.remove('oculto');
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                document.getElementById('panel').classList.add('oculto');
+            }, 5000);
         }
 
-        fetchStocks();
-        setInterval(fetchStocks, 300000); // Actualiza cada 5 min
+        document.addEventListener('mousemove', mostrar);
+        document.addEventListener('touchstart', mostrar);
+
+        getData(); // Carga inicial
+        mostrar(); // Mostrar panel al inicio
     </script>
 </body>
 </html>
