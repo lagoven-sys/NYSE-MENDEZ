@@ -3,226 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticker Flotante - José Méndez</title>
+    <title>Stock Ticker Pro - José Méndez</title>
     <style>
         :root {
             --bg-color: #000;
-            --text-color: #fff;
-            --up-color: #00ff00; /* Verde neón */
-            --down-color: #ff4444; /* Rojo brillante */
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            --ticker-height: 40px; /* Altura más reducida */
+            --up-color: #00ff00;
+            --down-color: #ff4444;
+            --ticker-height: 45px;
         }
 
         body, html {
             margin: 0;
             padding: 0;
-            background-color: transparent; /* Permite efecto flotante */
+            background-color: var(--bg-color);
             overflow: hidden;
-            font-family: var(--font-family);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+            font-family: 'Arial', sans-serif;
         }
 
-        /* --- Contenedor del Ticker (Súper Reducido) --- */
+        /* Ticker Ultra-Reducido */
         .ticker-container {
             width: 100%;
             height: var(--ticker-height);
-            background: rgba(0, 0, 0, 0.9); /* Fondo semi-transparente */
-            border-bottom: 1px solid #333;
+            background: #111;
             display: flex;
             align-items: center;
             white-space: nowrap;
-            overflow: hidden;
-            position: relative;
-            cursor: grab; /* Indica que se puede mover */
+            border-bottom: 1px solid #333;
         }
 
         .ticker-wrapper {
             display: inline-block;
             padding-left: 100%;
-            animation: scroll-left 40s linear infinite; /* Animación más suave */
+            animation: scroll-left 35s linear infinite;
         }
 
         .stock-item {
             display: inline-block;
-            margin-right: 60px;
-            font-size: 1rem;
+            margin-right: 50px;
+            font-size: 1.1rem;
             font-weight: bold;
-            color: var(--text-color);
+            color: #fff;
         }
 
         .price-up { color: var(--up-color); }
         .price-down { color: var(--down-color); }
-        .symbol-name { color: #aaa; font-weight: normal; margin-right: 5px; }
 
         @keyframes scroll-left {
             0% { transform: translateX(0); }
             100% { transform: translateX(-100%); }
         }
 
-        /* --- Panel de Configuración Auto-ocultable --- */
+        /* Panel Auto-ocultable */
         .config-panel {
-            background: rgba(34, 34, 34, 0.95);
+            background: rgba(30, 30, 30, 0.95);
             color: #ccc;
-            padding: 8px 15px;
-            font-size: 0.8rem;
-            border-top: 1px solid #444;
+            padding: 10px;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
+            transition: transform 0.4s ease, opacity 0.4s ease;
+            border-top: 1px solid #444;
             box-sizing: border-box;
-            transition: transform 0.5s ease-in-out, opacity 0.5s ease-in-out;
-            z-index: 100;
         }
 
-        /* Clase para ocultar el panel */
-        .config-panel.hidden {
-            transform: translateY(100%);
-            opacity: 0;
-            pointer-events: none; /* Evita clics cuando está oculto */
-        }
+        .hidden { transform: translateY(100%); opacity: 0; }
 
-        .config-group {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-        input {
-            background: #333;
-            border: 1px solid #555;
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            width: 200px;
-        }
-
-        button {
-            background: #007bff;
-            color: white;
-            border: none;
-            padding: 4px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        button:hover {
-            background: #0056b3;
-        }
-
-        .credits {
-            font-style: italic;
-            color: #888;
-        }
-
-        /* Ajuste para móvil: panel más vertical */
-        @media (max-width: 600px) {
-            .config-panel {
-                flex-direction: column;
-                gap: 8px;
-                text-align: center;
-            }
-            input { width: 100%; }
-        }
+        input { background: #333; border: 1px solid #555; color: #fff; padding: 5px; border-radius: 4px; }
+        button { background: #0055ff; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+        .credits { font-size: 0.8rem; font-style: italic; color: #777; }
     </style>
 </head>
 <body>
 
-    <div class="ticker-container" id="tickerContainer">
-        <div id="ticker" class="ticker-wrapper">
-            Obteniendo datos de Finnhub...
-        </div>
+    <div class="ticker-container" id="mainContainer">
+        <div id="ticker" class="ticker-wrapper">Cargando mercado...</div>
     </div>
 
     <div class="config-panel" id="configPanel">
-        <div class="config-group">
-            <label>Portafolio:</label>
-            <input type="text" id="symbolsInput" value="AAPL,MSFT,TSLA,GOOGL,AMZN,NVDA">
-            <button onclick="updateTicker()">Actualizar</button>
+        <div>
+            <label>Stocks: </label>
+            <input type="text" id="symbolsInput" value="AAPL,MSFT,TSLA,NVDA,GOOGL">
+            <button onclick="fetchStocks()">Actualizar</button>
         </div>
         <div class="credits">Autor: José Méndez</div>
     </div>
 
     <script>
-        // --- CONFIGURACIÓN ---
-        // IMPORTANTE: Regístrate en finnhub.io y pega tu clave aquí
-        const API_KEY = d7bicq1r01qgc9t7h3tgd7bicq1r01qgc9t7h3u0; 
-        const REFRESH_INTERVAL = 60000; // Actualizar cada 60 segundos (para no agotar la API gratuita)
-        const HIDE_DELAY = 5000; // Tiempo para ocultar el panel (5 segundos)
-
-        let hideTimeout;
+        // Usaremos tu clave de Marketstack que ya funcionaba
+        const API_KEY = '43453d9cd558518711f937072c3a3998';
         const configPanel = document.getElementById('configPanel');
+        let hideTimeout;
 
-        // --- FUNCIONES DEL PANEL AUTO-OCULTABLE ---
-        function showPanel() {
+        // --- Lógica de Ocultar Panel ---
+        function resetTimer() {
             configPanel.classList.remove('hidden');
-            resetHideTimeout();
-        }
-
-        function hidePanel() {
-            configPanel.classList.add('hidden');
-        }
-
-        function resetHideTimeout() {
             clearTimeout(hideTimeout);
-            hideTimeout = setTimeout(hidePanel, HIDE_DELAY);
+            hideTimeout = setTimeout(() => configPanel.classList.add('hidden'), 5000);
         }
 
-        // Detectar toques o clics en cualquier lugar
-        document.addEventListener('mousemove', showPanel);
-        document.addEventListener('click', showPanel);
-        document.addEventListener('touchstart', showPanel);
+        document.addEventListener('mousemove', resetTimer);
+        document.addEventListener('touchstart', resetTimer);
+        resetTimer();
 
-        // Inicializar el temporizador al cargar
-        resetHideTimeout();
-
-
-        // --- FUNCIONES DEL TICKER ---
+        // --- Lógica de Datos ---
         async function fetchStocks() {
-            const symbols = document.getElementById('symbolsInput').value.split(',').map(s => s.trim().toUpperCase());
-            const ticker = document.getElementById('ticker');
-            
-            if (API_KEY === 'd7bicq1r01qgc9t7h3tgd7bicq1r01qgc9t7h3u0' || API_KEY === '') {
-                ticker.innerText = "Error: Por favor, añade tu clave API de Finnhub en el código.";
-                return;
-            }
+            const symbols = document.getElementById('symbolsInput').value;
+            // Usamos el endpoint 'eod' (End of Day) para asegurar que siempre haya datos
+            const url = `https://api.marketstack.com/v1/eod/latest?access_key=${API_KEY}&symbols=${symbols}`;
 
-            ticker.innerHTML = 'Actualizando...';
-            const stockData = [];
-
-            // Finnhub requiere una petición por símbolo en el plan gratuito
-            for (const symbol of symbols) {
-                if (!symbol) continue;
-                const url = `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${API_KEY}`;
+            try {
+                const response = await fetch(url);
+                const result = await response.json();
                 
-                try {
-                    const response = await fetch(url);
-                    const data = await response.json();
-                    
-                    if (data && data.c !== 0) { // 'c' es el precio actual
-                        stockData.push({
-                            symbol: symbol,
-                            current: data.c,
-                            change: data.d, // 'd' es el cambio del día
-                            percentChange: data.dp // 'dp' es el cambio porcentual
-                        });
-                    }
-                } catch (error) {
-                    console.error(`Error con ${symbol}:`, error);
+                if (result && result.data && result.data.length > 0) {
+                    renderTicker(result.data);
+                } else {
+                    document.getElementById('ticker').innerHTML = "Sin datos (Verifica tu API en Marketstack)";
                 }
-            }
-
-            if (stockData.length > 0) {
-                renderTicker(stockData);
-            } else {
-                ticker.innerText = "No se encontraron datos. Revisa los símbolos o tu clave API.";
+            } catch (e) {
+                document.getElementById('ticker').innerHTML = "Error de conexión";
             }
         }
 
@@ -230,44 +132,25 @@
             const ticker = document.getElementById('ticker');
             ticker.innerHTML = '';
 
-            // Duplicamos los elementos para crear el efecto infinito
-            const allStocks = [...stocks, ...stocks];
-
-            allStocks.forEach(stock => {
-                const change = stock.change.toFixed(2);
-                const percent = stock.percentChange.toFixed(2);
-                const isUp = stock.change >= 0;
-                
+            stocks.forEach(stock => {
+                // Cálculo de tendencia (Cierre vs Apertura)
+                const isUp = stock.close >= stock.open;
                 const colorClass = isUp ? 'price-up' : 'price-down';
-                const sign = isUp ? '+' : '';
-                const arrow = isUp ? '▲' : '▼';
+                const icon = isUp ? '▲' : '▼';
+                const diff = (stock.close - stock.open).toFixed(2);
 
                 const item = document.createElement('span');
                 item.className = 'stock-item';
                 item.innerHTML = `
-                    <span class="symbol-name">${stock.symbol}</span>
-                    <span class="${colorClass}">$${stock.current.toFixed(2)}</span>
-                    <span class="${colorClass}" style="font-size: 0.8rem; margin-left: 5px;">
-                        ${arrow} ${sign}${change} (${sign}${percent}%)
-                    </span>
+                    ${stock.symbol}: 
+                    <span class="${colorClass}">$${stock.close.toFixed(2)} ${icon} ${diff}</span>
                 `;
                 ticker.appendChild(item);
             });
-            
-            // Reiniciar animación para que el navegador reconozca el nuevo ancho
-            ticker.style.animation = 'none';
-            ticker.offsetHeight; 
-            ticker.style.animation = null;
         }
 
-        function updateTicker() {
-            fetchStocks();
-            hidePanel(); // Ocultar panel al actualizar
-        }
-
-        // Cargar al inicio y actualizar periódicamente
         fetchStocks();
-        setInterval(fetchStocks, REFRESH_INTERVAL); 
+        setInterval(fetchStocks, 300000); // Actualiza cada 5 min
     </script>
 </body>
 </html>
