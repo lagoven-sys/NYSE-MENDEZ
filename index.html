@@ -103,50 +103,58 @@
     </div>
 
     <script>
-        const API_KEY = '43453d9cd558518711f937072c3a3998';
+    const API_KEY = '43453d9cd558518711f937072c3a3998';
+    
+    async function fetchStocks() {
+        const symbols = document.getElementById('symbolsInput').value;
+        // Cambiamos a 'eod' para mayor compatibilidad con el plan gratuito
+        const url = `https://api.marketstack.com/v1/eod/latest?access_key=${API_KEY}&symbols=${symbols}`;
+
+        try {
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            // Verificamos si hay datos en la respuesta
+            if (result && result.data) {
+                renderTicker(result.data);
+            } else {
+                document.getElementById('ticker').innerText = "Sin datos disponibles actualmente.";
+            }
+        } catch (error) {
+            console.error("Error:", error);
+            document.getElementById('ticker').innerText = "Error de conexión";
+        }
+    }
+
+    function renderTicker(stocks) {
+        const ticker = document.getElementById('ticker');
+        ticker.innerHTML = '';
+
+        stocks.forEach(stock => {
+            // Calculamos la variación (Cierre actual vs Cierre anterior si está disponible)
+            const price = stock.close || stock.last || 0;
+            const item = document.createElement('span');
+            item.className = 'stock-item';
+            
+            // Estilo visual: Símbolo en blanco, Precio en verde neón
+            item.innerHTML = `<span style="color:white">${stock.symbol}:</span> <span class="price-up">$${price.toFixed(2)} USD</span>`;
+            ticker.appendChild(item);
+        });
         
-        async function fetchStocks() {
-            const symbols = document.getElementById('symbolsInput').value;
-            const url = `https://api.marketstack.com/v1/intraday/latest?access_key=${API_KEY}&symbols=${symbols}`;
+        // Reiniciar animación para que el navegador reconozca el nuevo ancho
+        ticker.style.animation = 'none';
+        ticker.offsetHeight; 
+        ticker.style.animation = null;
+    }
 
-            try {
-                const response = await fetch(url);
-                const data = await response.json();
-                renderTicker(data.data);
-            } catch (error) {
-                console.error("Error al jalar datos:", error);
-                document.getElementById('ticker').innerText = "Error al conectar con la API";
-            }
-        }
-
-        function renderTicker(stocks) {
-            const ticker = document.getElementById('ticker');
-            ticker.innerHTML = '';
-
-            if (!stocks || stocks.length === 0) {
-                ticker.innerText = "No se encontraron datos.";
-                return;
-            }
-
-            stocks.forEach(stock => {
-                const change = (stock.last - stock.open).toFixed(2);
-                const colorClass = change >= 0 ? 'price-up' : 'price-down';
-                const sign = change >= 0 ? '▲' : '▼';
-
-                const item = document.createElement('span');
-                item.className = 'stock-item';
-                item.innerHTML = `${stock.symbol}: <span class="${colorClass}">${stock.last} ${sign} ${change}</span>`;
-                ticker.appendChild(item);
-            });
-        }
-
-        function updateTicker() {
-            fetchStocks();
-        }
-
-        // Cargar al inicio y actualizar cada 10 minutos para no agotar la API
+    function updateTicker() {
         fetchStocks();
-        setInterval(fetchStocks, 600000); 
+    }
+
+    fetchStocks();
+    setInterval(fetchStocks, 600000); 
+
+
     </script>
 </body>
 </html>
