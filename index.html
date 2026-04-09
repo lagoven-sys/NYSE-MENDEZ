@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Ticker - José Méndez</title>
+    <style>
+        :root {
+            --bg-color: #000;
+            --text-color: #00ff00;
+            --font-family: 'Courier New', Courier, monospace;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            overflow: hidden; /* Mantiene el tamaño del ticker */
+            font-family: var(--font-family);
+        }
+
+        /* Estilo del Ticker */
+        .ticker-container {
+            width: 100%;
+            height: 50px;
+            background: #111;
+            border-bottom: 2px solid #333;
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            position: relative;
+        }
+
+        .ticker-wrapper {
+            display: inline-block;
+            padding-left: 100%;
+            animation: scroll-left 30s linear infinite;
+        }
+
+        .stock-item {
+            display: inline-block;
+            margin-right: 50px;
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        .price-up { color: #00ff00; }
+        .price-down { color: #ff4444; }
+
+        @keyframes scroll-left {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-100%); }
+        }
+
+        /* Panel de Configuración */
+        .config-panel {
+            background: #222;
+            color: #ccc;
+            padding: 10px;
+            font-size: 0.8rem;
+            border-top: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        input {
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            padding: 5px;
+        }
+
+        button {
+            background: #0055ff;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+
+        .credits {
+            font-style: italic;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ticker-container">
+        <div id="ticker" class="ticker-wrapper">
+            Cargando datos de la Bolsa de NY...
+        </div>
+    </div>
+
+    <div class="config-panel">
+        <div>
+            <label>Portafolio (ej: AAPL,TSLA,MSFT): </label>
+            <input type="text" id="symbolsInput" value="AAPL,MSFT,TSLA,GOOGL,AMZN">
+            <button onclick="updateTicker()">Actualizar</button>
+        </div>
+        <div class="credits">Autor: José Méndez</div>
+    </div>
+
+    <script>
+        const API_KEY = '43453d9cd558518711f937072c3a3998';
+        
+        async function fetchStocks() {
+            const symbols = document.getElementById('symbolsInput').value;
+            const url = `https://api.marketstack.com/v1/intraday/latest?access_key=${API_KEY}&symbols=${symbols}`;
+
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                renderTicker(data.data);
+            } catch (error) {
+                console.error("Error al jalar datos:", error);
+                document.getElementById('ticker').innerText = "Error al conectar con la API";
+            }
+        }
+
+        function renderTicker(stocks) {
+            const ticker = document.getElementById('ticker');
+            ticker.innerHTML = '';
+
+            if (!stocks || stocks.length === 0) {
+                ticker.innerText = "No se encontraron datos.";
+                return;
+            }
+
+            stocks.forEach(stock => {
+                const change = (stock.last - stock.open).toFixed(2);
+                const colorClass = change >= 0 ? 'price-up' : 'price-down';
+                const sign = change >= 0 ? '▲' : '▼';
+
+                const item = document.createElement('span');
+                item.className = 'stock-item';
+                item.innerHTML = `${stock.symbol}: <span class="${colorClass}">${stock.last} ${sign} ${change}</span>`;
+                ticker.appendChild(item);
+            });
+        }
+
+        function updateTicker() {
+            fetchStocks();
+        }
+
+        // Cargar al inicio y actualizar cada 10 minutos para no agotar la API
+        fetchStocks();
+        setInterval(fetchStocks, 600000); 
+    </script>
+</body>
+</html>
